@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-    
+        
     @PostMapping("/login")
     public ResponseEntity<String> login() {
         return new ResponseEntity<String>("Ejecuta login", HttpStatus.OK);
