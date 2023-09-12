@@ -1,5 +1,6 @@
 package pe.edu.upc.JWTApplication.filters;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,6 +17,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import pe.edu.upc.JWTApplication.services.JwtService;
 
+import io.jsonwebtoken.security.SecurityException;
+
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -27,46 +30,56 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
     throws ServletException, IOException, java.io.IOException {
         
-        // * OBTENCIÓN DE DATOS * //
-        final String username;
-        final String token = jwtService.getTokenFromRequest(request);
-        
-        // * VALIDACIÓN DE DATOS * //
-        // ? Validar si el Token es nulo o está en la lista negra ? //
-        if (token == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        if (jwtService.isTokenBlacklisted(token)) {
-            return;
-        }
-
-        // * PROCESAMIENTO DE DATOS * //
-        // ? Obtener el username del token ? //
-        username = jwtService.getUsernameFromToken(token);
-        
-        // * AUTENTICACIÓN DEL TOKEN * //
-        // ? Autenticar el Token ? //
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken
-                (
-                    userDetails,
-                    null,
-                    userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
-            else {
+        try {
+            // * OBTENCIÓN DE DATOS * //
+            final String username;
+            final String token = jwtService.getTokenFromRequest(request);
+            
+            // * VALIDACIÓN DE DATOS * //
+            // ? Validar si el Token es nulo o está en la lista negra ? //
+            if (token == null) {
+                sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "Debe ingresar un token");
                 return;
             }
-        }
-        else {
-            return;
-        }
+            if (jwtService.isTokenBlacklisted(token)) {
+                sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "El token es invalido");
+                return;
+            }
 
-        filterChain.doFilter(request, response);
+            // * PROCESAMIENTO DE DATOS * //
+            // ? Obtener el username del token ? //
+            username = jwtService.getUsernameFromToken(token);
+            
+            // * AUTENTICACIÓN DEL TOKEN * //
+            // ? Autenticar el Token ? //
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                if (jwtService.isTokenValid(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken
+                    (
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+                else {
+                    sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "El token es invalido");
+                    return;
+                }
+            }
+
+            filterChain.doFilter(request, response);
+        } catch (SecurityException e) {
+            sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "El token es invalido");
+        }
+    }
+
+    private void sendErrorResponse(HttpServletResponse response, HttpStatus status, String message) throws IOException, java.io.IOException {
+        response.setStatus(status.value());
+        response.setContentType("application/json");
+        response.getWriter().write("{\"message\":\"" + message + "\"}");
+        response.getWriter().flush();
     }
 }
