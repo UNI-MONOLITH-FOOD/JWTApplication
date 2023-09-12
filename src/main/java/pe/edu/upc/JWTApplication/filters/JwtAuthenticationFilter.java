@@ -9,6 +9,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -16,8 +17,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import pe.edu.upc.JWTApplication.services.JwtService;
-
-import io.jsonwebtoken.security.SecurityException;
 
 @Component
 @RequiredArgsConstructor
@@ -64,14 +63,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
-                else {
-                    sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "El token es invalido");
-                    return;
-                }
             }
 
             filterChain.doFilter(request, response);
-        } catch (SecurityException e) {
+        } catch (JwtException e) {
             sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "El token es invalido");
         }
     }
