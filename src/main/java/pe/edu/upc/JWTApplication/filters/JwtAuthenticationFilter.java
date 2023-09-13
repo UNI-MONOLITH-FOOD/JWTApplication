@@ -37,7 +37,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // * VALIDACIÓN DE DATOS * //
             // ? Validar si el Token es nulo o está en la lista negra ? //
             if (token == null) {
-                sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "Debe ingresar un token");
+                // sendErrorResponse(response, HttpStatus.UNAUTHORIZED, "Debe ingresar un token");
+                filterChain.doFilter(request, response);
                 return;
             }
             if (jwtService.isTokenBlacklisted(token)) {
